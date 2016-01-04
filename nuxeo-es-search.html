@@ -61,31 +61,71 @@ Example:
             value: 'nuxeo'
           },
 
-          query:  Object,
+          size : {
+                type: Number,
+                value: 10,
+          },
 
-          aggregates: Object,
+          from: {
+                type : Number,
+                value: 0
+          },
 
-          type: String,
+          fields :  {
+			type: Array,
+			value: function() {
+				return [];
+				}
+		  },
 
-          aggregations: {
+          query : {
+			type : Object,
+			value : {}
+		  },
+
+          suggest : {
+			type : Object,
+			value : {}
+		  },
+
+          highlight : {
+			type : Object,
+			value : {}
+		  },
+
+          aggregates : {
+			type : Object,
+			value : {}
+		  },
+
+          type : String,
+
+          aggregations : {
             type: Object,
             notify: true,
             readOnly: true
           },
 
-          hits: {
+          hits : {
             type: Object,
             notify: true,
             readOnly: true
+          },
+
+          suggestions : {
+           type: Object,
+           notify: true,
+           readOnly: true
           }
+
         },
 
         observers: [
-          '_auto(connectionId, auto, index, query, aggregates)'
+           '_auto(connectionId, auto, index, query, aggregates, suggest, highlight)'
         ],
 
         _auto: function () {
-          if (this.auto && this.query && this.aggregates) {
+          if (this.auto && (this.query || this.aggregates || this.suggest)) {
             this.execute();
           }
         },
@@ -111,14 +151,23 @@ Example:
             headers[header.toLowerCase()] = auth[header].toString();
           }
 
+		  var body = {
+			fields : this.fields,
+			size: this.size,
+			from: this.from,
+		  };
+
+		  if (Object.keys(this.query).length> 0) body.query = this.query;
+		  if (Object.keys(this.aggregates).length> 0) body.aggs = this.aggregates;
+		  if (Object.keys(this.suggest).length> 0) body.suggest = this.suggest;
+		  if (Object.keys(this.highlight).length> 0) body.highlight = this.highlight;
+
           return document.createElement('iron-request')
               .send({
                 url: url,
                 method: 'POST',
                 headers: headers,
-                body: {
-                  query: this.query, aggs: this.aggregates
-                },
+                body: body,
                 handleAs: 'json'
               })
               .then(this._handleResponse.bind(this))
@@ -137,6 +186,7 @@ Example:
           var response = request.response;
           this._setHits(response.hits);
           this._setAggregations(response.aggregations);
+          this._setSuggestions(response.suggest);
           this.fire('results', response);
           return response;
         }
