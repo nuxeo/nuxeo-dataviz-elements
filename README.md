@@ -30,7 +30,7 @@ Once running, you can checkout the docs and demo at `http://localhost:3000/compo
 ## Testing
 
 Simply navigate to the `/test` directory of your element to run its tests. If
-you are using Polyserve: `http://localhost:8080/components/nuxeo-dataviz-elements/test/`
+you are using Polyserve: `http://localhost:3000/components/nuxeo-dataviz-elements/test/`
 
 ### web-component-tester
 
