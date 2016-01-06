@@ -2,7 +2,8 @@
   "name": "nuxeo-dataviz-elements",
   "version": "0.2.4",
   "authors": [
-    "Nelson Silva <nsilva@nuxeo.com>"
+    "Nelson Silva <nsilva@nuxeo.com>",
+    "Guillaume Renard <grenard@nuxeo.com>"
   ],
   "description": "A set of elements for Nuxeo Data Visualization.",
   "keywords": [
@@ -20,7 +21,8 @@
   ],
   "dependencies": {
     "polymer": "Polymer/polymer#^1.1.4",
-    "nuxeo-elements": "nuxeo/nuxeo-elements#^0.2.0"
+    "nuxeo-elements": "nuxeo/nuxeo-elements#^0.2.0",
+    "d3": "~3.5.12"
   },
   "devDependencies": {
     "iron-component-page": "PolymerElements/iron-component-page#1.0.5",
