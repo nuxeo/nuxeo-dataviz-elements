@@ -22,7 +22,11 @@
   "dependencies": {
     "polymer": "Polymer/polymer#^1.1.4",
     "nuxeo-elements": "nuxeo/nuxeo-elements#^0.2.0",
-    "d3": "~3.5.12"
+    "d3": "~3.5.12",
+    "randomcolor": "~0.4.2",
+    "paper-radio-group": "PolymerElements/paper-radio-group#~1.0.9",
+    "paper-radio-button": "PolymerElements/paper-radio-button#~1.0.12",
+    "paper-checkbox": "PolymerElements/paper-checkbox#~1.1.0"
   },
   "devDependencies": {
     "iron-component-page": "PolymerElements/iron-component-page#1.0.5",

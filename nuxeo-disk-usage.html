@@ -16,7 +16,11 @@ Contributors:
 -->
 <link rel="import" href="../nuxeo-elements/nuxeo-connection.html">
 <link rel="import" href="../iron-ajax/iron-request.html">
+<link rel="import" href="../iron-ajax/iron-request.html">
+<link rel="import" href="../paper-radio-group/paper-radio-group.html">
+<link rel="import" href="../paper-checkbox/paper-checkbox.html">
 <script src="../d3/d3.min.js"></script>
+<script src="../randomcolor/randomColor.js"></script>
 
 <!--
 A sunburst chart presenting Nuxeo Disk Usage.
@@ -98,11 +102,17 @@ Example:
         <div id="chart">
           <div id="explanation" style="visibility: hidden;">
             <span id="percentage"></span><br/>
+            <span id="percentageBis"></span>
           </div>
         </div>
       </div>
       <div id="sidebar">
-        <input type="checkbox" id="togglelegend"> Legend<br/>
+        <paper-radio-group selected="{{mode}}" on-paper-radio-group-changed="execute">
+          <paper-radio-button name="size">Size</paper-radio-button>
+          <paper-radio-button name="count">Document Count</paper-radio-button>
+        </paper-radio-group>
+        <!-- <br/>
+        <paper-checkbox>Legend</paper-checkbox> -->
         <div id="legend" style="visibility: hidden;"></div>
       </div>
     </div>
@@ -111,6 +121,260 @@ Example:
 
   <script>
     (function() {
+
+      Polymer({
+        is: 'nuxeo-disk-usage',
+
+        properties: {
+          /**
+           * The id of a nuxeo-connection to use.
+           */
+          connectionId: {
+            type: String,
+            value: 'nx'
+          },
+
+          index: {
+            type: String,
+            value: 'nuxeo'
+          },
+
+          mode: {
+            type: String,
+            value: 'size'
+          },
+
+          pathDepth: {
+            type: Number,
+            value: 10
+          },
+
+          chartLuminosity: {
+            type: String,
+            value: 'light'
+          },
+
+          chartHue: {
+            type: String,
+            value: 'blue'
+          }
+
+        },
+
+        _computeSizeQuery: function () {
+          var query;
+          var subPart = {
+            "size": {
+              "sum": {
+                "field": "common:size"
+              }
+            }
+          };
+          for (var depth = this.pathDepth; depth > 2; depth--) {
+            subPart = {
+              "size": {
+                "sum": {
+                  "field": "common:size"
+                }
+              },
+              "subLevel": {
+                "terms": {
+                  "field": "pathLevel" + depth,
+                  "size": 0
+                },
+                "aggs": subPart
+              }
+            };
+          }
+          query = {
+            "query": {
+              "filtered": {
+                "query": {
+                  "query_string": {
+                    "query": "-ecm.mixInType.HiddenInNavigation",
+                    "analyze_wildcard": true
+                  }
+                }
+              }
+            },
+            "size": 0,
+            "aggs": {
+              "subLevel": {
+                "terms": {
+                  "field": "pathLevel2",
+                  "size": 0
+                },
+                "aggs": subPart
+              }
+            }
+          }
+          return query;
+        },
+
+        _computeDocCountQuery: function () {
+          var query;
+          var subPart = {
+            "subLevel": {
+              "terms": {
+                "field": "pathLevel" + this.pathDepth,
+                "size": 0,
+                "order": {
+                  "_count": "desc"
+                }
+              }
+            }
+          };
+          for (var depth = this.pathDepth - 1; depth > 1; depth--) {
+            subPart = {
+              "subLevel": {
+                "terms": {
+                  "field": "pathLevel" + depth,
+                  "size": 0,
+                  "order": {
+                    "_count": "desc"
+                  }
+                },
+                "aggs": subPart
+              }
+            };
+          }
+          query = {
+            "query": {
+              "filtered": {
+                "query": {
+                  "query_string": {
+                    "query": "-ecm.mixInType.HiddenInNavigation",
+                    "analyze_wildcard": true
+                  }
+                }
+              }
+            },
+            "size": 0,
+            "aggs": subPart
+          }
+          return query;
+        },
+
+        execute: function() {
+          var query;
+          if (this.mode === 'size') {
+            query = this._computeSizeQuery();
+          } else if (this.mode === 'count') {
+            query = this._computeDocCountQuery();
+          } else {
+            alert('Mode must be either size or docCount');
+            return;
+          }
+          var url = [this.$.nx.client._baseURL, 'site/es', this.index, '_search'].join('/');
+          url = url.replace(/(^\/+)|([^:])\/\/+/g, '$2/');
+
+          if (this.type) { url += '?search_type=' + this.type; }
+
+          // add auth headers
+          var auth = {'Content-Type': 'application/json'};
+          this.$.nx.client._computeAuthentication(auth);
+
+          // Normalize headers in lower case
+          var headers = {};
+          for (var header in auth) {
+            headers[header.toLowerCase()] = auth[header].toString();
+          }
+
+          return document.createElement('iron-request')
+              .send({
+                url: url,
+                method: 'POST',
+                headers: headers,
+                body: query,
+                handleAs: 'json'
+              }).then(this._handleResponse.bind(this));
+        },
+
+        _handleError: function(reason) {
+          console.error(reason);
+          this.fire('error', {
+            reason: reason,
+            error: reason
+          });
+        },
+
+        _handleResponse: function(request) {
+          var response = request.response;
+          return this._buildSunBurst(response.aggregations);
+        },
+
+        _transformSubBuckets: function(bucket) {
+          bucket.name = bucket.key;
+          bucket.color = getColor(bucket.name, this.chartHue, this.chartLuminosity);
+          var size;
+          if (this.mode === 'size') {
+            size = bucket.size.value;
+            delete bucket.size;
+          } else if (this.mode === 'count') {
+            size = bucket.doc_count;
+            delete bucket.doc_count;
+          }
+          delete bucket.key;
+          bucket.size = size;
+          if (bucket.subLevel) {
+            bucket.children = bucket.subLevel.buckets;
+            delete bucket.subLevel;
+            if (bucket.children.length == 0) {
+              return;
+            }
+            for (var j = 0; j < bucket.children.length; j++) {
+              this._transformSubBuckets(bucket.children[j]);
+            }
+          }
+        },
+
+        _buildSunBurst: function(aggregations) {
+          console.log('_buildSunBurst');
+          var aggregations = aggregations.subLevel;
+          aggregations.name = "root";
+          aggregations.color = getColor(aggregations.name, this.chartHue, this.chartLuminosity);
+          aggregations.children = aggregations.buckets;
+          delete aggregations.buckets;
+          delete aggregations.doc_count_error_upper_bound;
+          delete aggregations.sum_other_doc_count;
+          for (var i = 0; i < aggregations.children.length; i++) {
+            this._transformSubBuckets(aggregations.children[i]);
+          }
+
+          // Dimensions of sunburst.
+          radius = Math.min(width, height) / 2;
+
+          // Total size of all segments; we set this later, after loading the data.
+          var totalSize = 0;
+          console.log('remove');
+          $('#chart svg').remove('svg');
+
+          vis = d3.select("#chart").append("svg:svg")
+              .attr("width", width)
+              .attr("height", height)
+              .append("svg:g")
+              .attr("id", "container")
+              .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+          partition = d3.layout.partition()
+              .size([2 * Math.PI, radius * radius])
+              .value(function(d) { return d.size; });
+
+          arc = d3.svg.arc()
+              .startAngle(function(d) { return d.x; })
+              .endAngle(function(d) { return d.x + d.dx; })
+              .innerRadius(function(d) { return Math.sqrt(d.y); })
+              .outerRadius(function(d) { return Math.sqrt(d.y + d.dy); });
+
+          createVisualization(aggregations);
+
+        },
+
+        ready: function() {
+          this.execute();
+        }
+
+      });
 
       var vis, radius, partition, arc;
 
@@ -124,26 +388,20 @@ Example:
 
       var colors = {};
 
-      function hashCode(str) { // java String#hashCode
-          var hash = 0;
-          for (var i = 0; i < str.length; i++) {
-             hash = str.charCodeAt(i) + ((hash << 5) - hash);
-          }
-          return hash;
+      function hashCode(s) {
+          return s.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);
       };
 
-      function intToRGB(i) {
-          var c = (i & 0x00FFFFFF)
-              .toString(16)
-              .toUpperCase();
-
-          return "00000".substring(0, 6 - c.length) + c;
-      };
-
-      function getColor(pathPart) {
-        var compColor = intToRGB(hashCode(pathPart));
-        colors[pathPart] = compColor;
-        return compColor;
+      function getColor(pathPart, hue, luminosity) {
+        var result = colors[pathPart];
+        if (result === undefined) {
+          result = randomColor({
+            hue: hue,
+            luminosity: luminosity
+          });
+          colors[pathPart] = result;
+        }
+        return result;
       };
 
       // Given a node in a partition layout, return an array of all of its ancestor
@@ -205,7 +463,6 @@ Example:
       // Main function to draw and set up the visualization, once we have the data.
       function createVisualization(aggregations) {
 
-        // Basic setup of page elements.
         initializeBreadcrumbTrail();
         drawLegend();
         d3.select("#togglelegend").on("click", toggleLegend);
@@ -251,7 +508,9 @@ Example:
         }
 
         d3.select("#percentage")
-            .text(percentageString);
+            .text(humanFileSize(d.value, true));
+        d3.select("#percentageBis")
+            .text('(' + percentageString + ')');
 
         d3.select("#explanation")
             .style("visibility", "");
@@ -295,6 +554,8 @@ Example:
       };
 
       function initializeBreadcrumbTrail() {
+        $('#sequence').empty();
+        console.log('empty');
         // Add the svg area.
         var trail = d3.select("#sequence").append("svg:svg")
             .attr("width", width)
@@ -362,225 +623,22 @@ Example:
         }
       };
 
-      Polymer({
-        is: 'nuxeo-disk-usage',
-
-        properties: {
-          /**
-           * The id of a nuxeo-connection to use.
-           */
-          connectionId: {
-            type: String,
-            value: 'nx'
-          },
-
-          index: {
-            type: String,
-            value: 'nuxeo'
-          },
-
-          size: {
-            type: Boolean,
-            value: true
-          },
-
-          pathDepth: {
-            type: Number,
-            value: 7
+      function humanFileSize(bytes, si) {
+          var thresh = si ? 1000 : 1024;
+          if(Math.abs(bytes) < thresh) {
+              return bytes + ' B';
           }
+          var units = si
+              ? ['kB','MB','GB','TB','PB','EB','ZB','YB']
+              : ['KiB','MiB','GiB','TiB','PiB','EiB','ZiB','YiB'];
+          var u = -1;
+          do {
+              bytes /= thresh;
+              ++u;
+          } while(Math.abs(bytes) >= thresh && u < units.length - 1);
+          return bytes.toFixed(1)+' '+units[u];
+      };
 
-        },
-
-        execute: function () {
-          return this.$.nx.connect()
-              .then(this._queryUsage.bind(this));
-        },
-
-        _queryUsage: function() {
-
-          var query = {
-            "query": {
-              "filtered": {
-                "query": {
-                  "query_string": {
-                    "query": "-ecm.mixInType.HiddenInNavigation",
-                    "analyze_wildcard": true
-                  }
-                }
-              }
-            },
-            "size": 0,
-            "aggs": {
-              "subLevel": {
-                "terms": {
-                  "field": "pathLevel2",
-                  "size": 0
-                },
-                "aggs": {
-                  "size": {
-                    "sum": {
-                      "field": "common:size"
-                    }
-                  },
-                  "subLevel": {
-                    "terms": {
-                      "field": "pathLevel3",
-                      "size": 0
-                    },
-                    "aggs": {
-                      "size": {
-                        "sum": {
-                          "field": "common:size"
-                        }
-                      },
-                      "subLevel": {
-                        "terms": {
-                          "field": "pathLevel4",
-                          "size": 0
-                        },
-                        "aggs": {
-                          "size": {
-                            "sum": {
-                              "field": "common:size"
-                            }
-                          },
-                          "subLevel": {
-                            "terms": {
-                              "field": "pathLevel5",
-                              "size": 0
-                            },
-                            "aggs": {
-                              "size": {
-                                "sum": {
-                                  "field": "common:size"
-                                }
-                              },
-                              "subLevel": {
-                                "terms": {
-                                  "field": "pathLevel6",
-                                  "size": 0
-                                },
-                                "aggs": {
-                                  "size": {
-                                    "sum": {
-                                      "field": "common:size"
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-
-          var url = [this.$.nx.client._baseURL, 'site/es', this.index, '_search'].join('/');
-          url = url.replace(/(^\/+)|([^:])\/\/+/g, '$2/');
-
-          if (this.type) { url += '?search_type=' + this.type; }
-
-          // add auth headers
-          var auth = {'Content-Type': 'application/json'};
-          this.$.nx.client._computeAuthentication(auth);
-
-          // Normalize headers in lower case
-          var headers = {};
-          for (var header in auth) {
-            headers[header.toLowerCase()] = auth[header].toString();
-          }
-
-          return document.createElement('iron-request')
-              .send({
-                url: url,
-                method: 'POST',
-                headers: headers,
-                body: query,
-                handleAs: 'json'
-              }).then(this._handleResponse.bind(this)).catch(this._handleError.bind(this));
-        },
-
-        _handleError: function(reason) {
-          console.error(reason);
-          this.fire('error', {
-            reason: reason,
-            error: reason
-          });
-        },
-
-        _handleResponse: function(request) {
-          var response = request.response;
-          return this._buildSunBurst(response.aggregations);
-        },
-
-        _transformSubBuckets: function(bucket) {
-          bucket.name = bucket.key;
-          bucket.color = getColor(bucket.name);
-          var size = bucket.size.value;
-          delete bucket.size;
-          delete bucket.key;
-          bucket.size = size;
-          if (bucket.subLevel) {
-            bucket.children = bucket.subLevel.buckets;
-            delete bucket.subLevel;
-            if (bucket.children.length == 0) {
-              return;
-            }
-            for (var j = 0; j < bucket.children.length; j++) {
-              this._transformSubBuckets(bucket.children[j]);
-            }
-          }
-        },
-
-        _buildSunBurst: function(aggregations) {
-          var aggregations = aggregations.subLevel;
-          aggregations.name = "root";
-          aggregations.color = getColor(aggregations.name);
-          aggregations.children = aggregations.buckets;
-          delete aggregations.buckets;
-          delete aggregations.doc_count_error_upper_bound;
-          delete aggregations.sum_other_doc_count;
-          for (var i = 0; i < aggregations.children.length; i++) {
-            this._transformSubBuckets(aggregations.children[i]);
-          }
-          console.log(aggregations);
-
-          // Dimensions of sunburst.
-          radius = Math.min(width, height) / 2;
-
-          // Total size of all segments; we set this later, after loading the data.
-          var totalSize = 0;
-
-          vis = d3.select("#chart").append("svg:svg")
-              .attr("width", width)
-              .attr("height", height)
-              .append("svg:g")
-              .attr("id", "container")
-              .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
-
-          partition = d3.layout.partition()
-              .size([2 * Math.PI, radius * radius])
-              .value(function(d) { return d.size; });
-
-          arc = d3.svg.arc()
-              .startAngle(function(d) { return d.x; })
-              .endAngle(function(d) { return d.x + d.dx; })
-              .innerRadius(function(d) { return Math.sqrt(d.y); })
-              .outerRadius(function(d) { return Math.sqrt(d.y + d.dy); });
-
-          createVisualization(aggregations);
-
-        },
-
-        ready: function() {
-          this._queryUsage();
-        }
-
-      });
     })();
   </script>
 
