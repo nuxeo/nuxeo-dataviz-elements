@@ -27,7 +27,7 @@ A sunburst chart presenting Nuxeo Disk Usage.
 
 Example:
 
-    <nuxeo-disk-usage></nuxeo-disk-usage>
+    <nuxeo-disk-usage pathDepth="7" mode="count"></nuxeo-disk-usage>
 
 @group Nuxeo Data Elements
 @element nuxeo-disk-usage
@@ -37,7 +37,7 @@ Example:
   <template>
 
     <style is="custom-style">
-      #diskUsage {
+      #du {
         font-family: 'Open Sans', sans-serif;
         font-size: 12px;
         font-weight: 400;
@@ -51,7 +51,7 @@ Example:
         width: 70%;
       }
 
-      #sidebar {
+      #ex {
         float: right;
         width: 30%;
       }
@@ -78,7 +78,7 @@ Example:
         stroke: #fff;
       }
 
-      #explanation {
+      #ex {
         position: absolute;
         top: 260px;
         left: 305px;
@@ -88,7 +88,7 @@ Example:
         z-index: -1;
       }
 
-      #percentage {
+      #cl {
         font-size: 2.5em;
       }
 
@@ -96,17 +96,17 @@ Example:
 
     <nuxeo-connection id="nx" connection-id="[[connectionId]]"></nuxeo-connection>
 
-    <div id="diskUsage">
+    <div id="du">
       <div id="main">
         <div id="sequence"></div>
         <div id="chart">
-          <div id="explanation" style="visibility: hidden;">
-            <span id="percentage"></span><br/>
-            <span id="percentageBis"></span>
+          <div id="ex" style="visibility: hidden;">
+            <span id="cl"></span><br/>
+            <span id="clb"></span>
           </div>
         </div>
       </div>
-      <div id="sidebar">
+      <div id="ex">
         <paper-radio-group selected="{{mode}}" on-paper-radio-group-changed="execute">
           <paper-radio-button name="size">Size</paper-radio-button>
           <paper-radio-button name="count">Document Count</paper-radio-button>
@@ -507,12 +507,12 @@ Example:
           percentageString = "< 0.1%";
         }
 
-        d3.select("#percentage")
-            .text(humanFileSize(d.value, true));
-        d3.select("#percentageBis")
+        d3.select("#cl")
+            .text(humanFileSize(d.value));
+        d3.select("#clb")
             .text('(' + percentageString + ')');
 
-        d3.select("#explanation")
+        d3.select("#ex")
             .style("visibility", "");
 
         var sequenceArray = getAncestors(d);
@@ -549,7 +549,7 @@ Example:
                     d3.select(this).on("mouseover", mouseover);
                   });
 
-        d3.select("#explanation")
+        d3.select("#ex")
             .style("visibility", "hidden");
       };
 
@@ -623,14 +623,12 @@ Example:
         }
       };
 
-      function humanFileSize(bytes, si) {
+      function humanFileSize(bytes) {
           var thresh = si ? 1000 : 1024;
           if(Math.abs(bytes) < thresh) {
               return bytes + ' B';
           }
-          var units = si
-              ? ['kB','MB','GB','TB','PB','EB','ZB','YB']
-              : ['KiB','MiB','GiB','TiB','PiB','EiB','ZiB','YiB'];
+          var units = ['kB','MB','GB','TB','PB','EB','ZB','YB'];
           var u = -1;
           do {
               bytes /= thresh;
