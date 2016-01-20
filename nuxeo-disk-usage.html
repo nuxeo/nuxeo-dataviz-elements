@@ -27,8 +27,8 @@ A sunburst chart presenting Nuxeo Disk Usage.
 
 Example:
 
-    <nuxeo-disk-usage pathDepth="7"
-      mode="count"
+    <nuxeo-disk-usage maxDepth="7"
+      path="/default-domain" mode="count"
       chartHue="red" chartLumonisity="light">
     </nuxeo-disk-usage>
 
@@ -141,12 +141,17 @@ Example:
             value: 'nuxeo'
           },
 
+          path: {
+            type: String,
+            value: ''
+          },
+
           mode: {
             type: String,
             value: 'size'
           },
 
-          pathDepth: {
+          maxDepth: {
             type: Number,
             value: 10
           },
@@ -169,12 +174,20 @@ Example:
           height: {
             type: Number,
             value: 600
+          },
+
+          queryFiler: {
+            type: Object,
+            computed: '_computeQueryFilter(path)'
           }
 
         },
 
         _computeSizeQuery: function () {
           var query;
+
+          var pathDepth = this.path.split('/').length;
+
           var subPart = {
             "size": {
               "sum": {
@@ -182,7 +195,7 @@ Example:
               }
             }
           };
-          for (var depth = this.pathDepth; depth > 2; depth--) {
+          for (var depth = pathDepth - 1 + this.maxDepth; depth > pathDepth; depth--) {
             subPart = {
               "size": {
                 "sum": {
@@ -200,20 +213,15 @@ Example:
           }
           query = {
             "query": {
-              "filtered": {
-                "query": {
-                  "query_string": {
-                    "query": "-ecm.mixInType.HiddenInNavigation",
-                    "analyze_wildcard": true
-                  }
-                }
+              "bool": {
+                  "must": this.queryFiler
               }
             },
             "size": 0,
             "aggs": {
               "subLevel": {
                 "terms": {
-                  "field": "pathLevel2",
+                  "field": "pathLevel" + pathDepth,
                   "size": 0
                 },
                 "aggs": subPart
@@ -225,10 +233,13 @@ Example:
 
         _computeDocCountQuery: function () {
           var query;
+
+          var pathDepth = this.path.split('/').length;
+
           var subPart = {
             "subLevel": {
               "terms": {
-                "field": "pathLevel" + this.pathDepth,
+                "field": "pathLevel" + (pathDepth - 1 + this.maxDepth),
                 "size": 0,
                 "order": {
                   "_count": "desc"
@@ -236,7 +247,8 @@ Example:
               }
             }
           };
-          for (var depth = this.pathDepth - 1; depth > 1; depth--) {
+
+          for (var depth = pathDepth - 2 + this.maxDepth; depth >= pathDepth; depth--) {
             subPart = {
               "subLevel": {
                 "terms": {
@@ -252,19 +264,48 @@ Example:
           }
           query = {
             "query": {
-              "filtered": {
-                "query": {
-                  "query_string": {
-                    "query": "-ecm.mixInType.HiddenInNavigation",
-                    "analyze_wildcard": true
-                  }
-                }
+              "bool": {
+                  "must": this.queryFiler
               }
             },
             "size": 0,
             "aggs": subPart
           }
           return query;
+        },
+
+        _computeQueryFilter(path) {
+          var result = [];
+          result.push({
+            "constant_score": {
+                "filter": {
+                    "not": {
+                        "filter": {
+                            "term": {
+                                "ecm:mixinType": "HiddenInNavigation"
+                            }
+                        }
+                    }
+                }
+            }
+          });
+          if (path && path.length > 0) {
+            var split = path.split('/');
+            for (var i = 1; i < split.length; i++) {
+              var propName = "pathLevel" + i;
+              var toPush = {
+                "constant_score": {
+                    "filter": {
+                      "term": {
+                      }
+                    }
+                }
+              };
+              toPush.constant_score.filter.term["pathLevel" + i] = split[i];
+              result.push(toPush);
+            }
+          }
+          return result;
         },
 
         execute: function() {
@@ -341,7 +382,6 @@ Example:
         },
 
         _buildSunBurst: function(aggregations) {
-          console.log('_buildSunBurst');
           var aggregations = aggregations.subLevel;
           aggregations.name = "root";
           aggregations.color = this._getColor(aggregations.name, this.chartHue, this.chartLuminosity);
