@@ -121,12 +121,22 @@ Example:
            type: Object,
            notify: true,
            readOnly: true
-          }
+          },
+
+          sort : {
+           type: Array,
+           notify: true,
+           readOnly: true,
+           value: function() {
+            return [];
+           }
+          },
+
 
         },
 
         observers: [
-           '_auto(connectionId, auto, index, query, aggregates, suggest, highlight)'
+           '_auto(connectionId, auto, index, query, aggregates, suggest, highlight,sort)'
         ],
 
         _auto: function () {
@@ -167,6 +177,7 @@ Example:
 		  if (Object.keys(this.aggregates).length> 0) body.aggs = this.aggregates;
 		  if (Object.keys(this.suggest).length> 0) body.suggest = this.suggest;
 		  if (Object.keys(this.highlight).length> 0) body.highlight = this.highlight;
+		  if (Object.keys(this.sort).length> 0) body.sort = this.sort;
 
           return document.createElement('iron-request')
               .send({
