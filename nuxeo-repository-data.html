@@ -25,7 +25,7 @@ A `metrics` query is a configurable nested aggregation with 3 aggregation levels
 - `with-*`: nested multi-bucket aggregation (with-ranges | with-date-intervals)
 - `metrics`: leaf single-value metrics aggregation (count, max, min, avg, sum)
 
-Filtering of the data is possible by using the document property helper attributes: `ecm-primary-type`, `ecm-lifecycle-state` or `ecm-mixin-type`
+Filtering of the data is possible by using the document property helper attributes: `ecm-primary-type`, `ecm-current-life-cycle-state` or `ecm-mixin-type`
 
 It is also possible to use a `where` attribute which takes a list of clauses to include in query.
 
@@ -95,9 +95,9 @@ The previous example would produce a query like:
       },
 
       /**
-       * Filter by ecm:lifecycleState`
+       * Filter by ecm:currentLifeCycleState`
        */
-      ecmLifecycleState: {
+      ecmCurrentLifeCycleState: {
         type: String,
         value: ''
       },
@@ -113,7 +113,7 @@ The previous example would produce a query like:
     },
 
     observers: [
-      '_query(ecmPrimaryType, ecmLifecycleState, ecmMixinType, where, startDate, endDate)',
+      '_query(ecmPrimaryType, ecmCurrentLifeCycleState, ecmMixinType, where, startDate, endDate)',
       '_aggregates(groupedBy, groupLimit, withRanges, withDateIntervals, metrics, metricsOperator, startDate, endDate)'
     ],
 
@@ -125,8 +125,8 @@ The previous example would produce a query like:
       if (this.ecmPrimaryType) {
         terms.push({terms: {'ecm:primaryType': this._splitTerms(this.ecmPrimaryType) }});
       }
-      if (this.ecmLifecycleState) {
-        terms.push({terms: {'ecm:lifecycleState': this._splitTerms(this.ecmLifecycleState) }});
+      if (this.ecmCurrentLifeCycleState) {
+        terms.push({terms: {'ecm:currentLifeCycleState': this._splitTerms(this.ecmCurrentLifeCycleState) }});
       }
       if (this.ecmMixinType) {
         terms.push({terms: {'ecm:mixinType': this._splitTerms(this.ecmMixinType) }});
