@@ -1,0 +1,25 @@
+{
+  "name": "nuxeo",
+  "main": [
+    "dist/nuxeo.js"
+  ],
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "src",
+    "lib",
+    "test"
+  ],
+  "homepage": "https://github.com/nuxeo/nuxeo-js-client",
+  "version": "0.25.0",
+  "_release": "0.25.0",
+  "_resolution": {
+    "type": "version",
+    "tag": "v0.25.0",
+    "commit": "d7aaaa843b58871bc5cf5190bed0687ba4cc5815"
+  },
+  "_source": "https://github.com/nuxeo/nuxeo-js-client.git",
+  "_target": "0.25.0",
+  "_originalSource": "nuxeo"
+}
