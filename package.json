@@ -1,6 +1,6 @@
 {
   "name": "nuxeo-dataviz-elements",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A set of elements for Nuxeo Data Visualization.",
   "repository": {
     "type": "git",
