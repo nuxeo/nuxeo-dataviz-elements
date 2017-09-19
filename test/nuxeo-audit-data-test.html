@@ -255,7 +255,7 @@ Contributors:
         function fakeResponse(search, json) {
           server.respondWith(
               'POST',
-              '/dummy/site/es/audit/_search?search_type=count',
+              '/dummy/site/es/audit/_search',
               [
                 200,
                 {'Content-Type': 'application/json'},
