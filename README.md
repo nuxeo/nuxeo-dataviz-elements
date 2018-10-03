@@ -1,3 +1,4 @@
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/d44280bfd1ab49259a5890a65c663dca)](https://app.codacy.com/app/Nuxeo/nuxeo-dataviz-elements?utm_source=github.com&utm_medium=referral&utm_content=nuxeo/nuxeo-dataviz-elements&utm_campaign=Badge_Grade_Settings)
 [![Build Status](https://qa.nuxeo.org/jenkins/buildStatus/icon?job=master/nuxeo-dataviz-elements-master)](https://qa.nuxeo.org/jenkins/job/master/job/nuxeo-dataviz-elements-master/)
 
 # About nuxeo-dataviz-elements
