@@ -60,9 +60,15 @@ limitations under the License.
       </template>
     </test-fixture>
 
-    <test-fixture id="metrics">
+    <test-fixture id="single-value-metrics">
       <template>
         <nuxeo-search-data metrics="avg(variable)"></nuxeo-search-data>
+      </template>
+    </test-fixture>
+
+    <test-fixture id="object-value-metrics">
+      <template>
+        <nuxeo-search-data metrics="percentiles(variable)"></nuxeo-search-data>
       </template>
     </test-fixture>
 
@@ -110,8 +116,8 @@ limitations under the License.
           ]);
         });
 
-        test('metrics', () => {
-          const search = fixture('metrics');
+        test('single-value metrics', () => {
+          const search = fixture('single-value-metrics');
           assert.equal(search.aggregates.metrics.avg.field, 'extended.variable');
 
           return fakeResponse(search, {
@@ -122,6 +128,31 @@ limitations under the License.
             },
           }).then(() => {
             assert.equal(search.data, 1);
+          });
+        });
+
+        test('object-value metrics', () => {
+          const search = fixture('object-value-metrics');
+          assert.equal(search.aggregates.metrics.percentiles.field, 'extended.variable');
+
+          return fakeResponse(search, {
+            aggregations: {
+              metrics: {
+                values: {
+                  '1.0': 1,
+                  '5.0': 1,
+                  '25.0': 1,
+                  '50.0': 5,
+                  '75.0': 1,
+                  '95.0': 1,
+                  '99.0': 2,
+                },
+              },
+            },
+          }).then(() => {
+            assert.equal(search.data['1.0'], 1);
+            assert.equal(search.data['50.0'], 5);
+            assert.equal(search.data['99.0'], 2);
           });
         });
 
