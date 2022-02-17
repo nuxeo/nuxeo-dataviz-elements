@@ -1,0 +1,28 @@
+name: Lint
+
+on:
+  pull_request:
+    branches:
+      - maintenance-2.4.x
+  # workflow_call:
+  #   inputs:
+  #     branch:
+  #       description: 'The current branch'
+  #       default: maintenance-2.4.x
+  #       type: string
+  #       required: false
+  #   secrets:
+  #     NPM_PACKAGES_TOKEN:
+  #       description: 'NPM_PACKAGES_TOKEN'
+  #       required: true
+
+# env:
+  # BRANCH_NAME: ${{ github.head_ref || inputs.branch || 'maintenance-2.4.x' }}
+
+jobs:
+  lint:
+    uses: nuxeo/nuxeo-elements/.github/workflows/lint.yaml@pr-checks-2.4.x
+    secrets:
+      NPM_PACKAGES_TOKEN: ${{ secrets.NPM_PACKAGES_TOKEN }}
+    # with:
+    #   branch: ${{ env.BRANCH_NAME }}
